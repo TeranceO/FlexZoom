@@ -1,0 +1,45 @@
+# Build output and local test data
+**/bin/
+**/obj/
+/dist/
+/artifacts/
+TestResults/
+*.log
+*.tmp
+*.bak
+
+# IDE and user-specific configuration
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.sln.docstates
+*.userosscache
+*.sln.ide
+
+# Local secrets and signing material
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.key
+*.pem
+*.snk
+NuGet.Config
+nuget.config
+
+# Local assistant and synchronization metadata
+.codex/
+.claude/
+.stfolder
+.stignore
+.stversions/
+.syncthing.*
+*sync-conflict*
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
