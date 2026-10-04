@@ -2,7 +2,7 @@
 
 ## Status
 
-Flex Zoom's SignPath integration is prepared; SignPath Foundation application and approval are pending. The existing v1.2.0 download is unsigned. New releases will be published only after successful Foundation signing and verification. Configured automation is not evidence that a certificate has been issued.
+Flex Zoom's SignPath integration is prepared. The Foundation application has been submitted and its receipt confirmed; review and approval are pending. The existing v1.2.0 download is unsigned. New releases will be published only after successful Foundation signing and verification. An application acknowledgment or configured automation is not evidence that a certificate has been issued.
 
 ## Provider
 

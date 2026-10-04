@@ -21,7 +21,7 @@ Flex Zoom is a Windows x64 .NET 9 WPF application. Preserve existing preferences
 
 ## First-time onboarding state
 
-As of 2026-10-04, SignPath Foundation approval is pending. The integration is prepared, not yet provisioned by SignPath. Version 1.2.0 is the earlier unsigned public release. Version 1.3.0 must remain a draft until Foundation approval, configuration, credentials, and a verified signed build are available. Update this paragraph when onboarding is completed.
+As of 2026-10-04, the SignPath Foundation application has been submitted and its receipt confirmed. Foundation review and approval are pending; an application acknowledgment is not approval to sign. The integration is prepared, not yet provisioned by SignPath. Version 1.2.0 is the earlier unsigned public release. Version 1.3.0 must remain a draft until Foundation approval, configuration, credentials, and a verified signed build are available. Update this paragraph when onboarding is completed.
 
 ## Standard update procedure
 

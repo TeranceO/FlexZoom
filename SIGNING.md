@@ -1,10 +1,10 @@
 # SignPath setup and releases
 
-The repository is ready for SignPath Foundation integration. Account provisioning, Foundation approval, and the first signature are still pending. The free program is discretionary; the project's current limited download history does not guarantee approval.
+The repository is ready for SignPath Foundation integration. The application has been submitted and SignPath has confirmed receipt. Account provisioning, Foundation approval, and the first signature are still pending. The free program is discretionary; the project's current limited download history does not guarantee approval.
 
 ## One-time setup
 
-1. Apply at [SignPath Foundation](https://signpath.org/apply). Use the public repository and [Code signing policy](https://github.com/TeranceO/FlexZoom/blob/main/CODE_SIGNING.md). The application requires maintainer contact information, reputation information, and acceptance of the Foundation Code of Conduct and privacy consent. The maintainer must complete those steps.
+1. Application submitted; receipt confirmed. Wait for SignPath's review rather than submitting a duplicate application. The [Foundation application](https://signpath.org/apply) references the public repository and [Code signing policy](https://github.com/TeranceO/FlexZoom/blob/main/CODE_SIGNING.md).
 2. Enable MFA for the maintainer's GitHub and SignPath accounts. After approval, install the official [SignPath GitHub App](https://github.com/apps/signpath) with access limited to this repository and link the project to the GitHub.com Trusted Build System. Review and accept required permissions yourself.
 3. Create a SignPath project (suggested slug: `flexzoom`), import `.signpath/artifact-configuration.xml` as an artifact configuration (suggested slug: `flexzoom`), and create a production signing policy (suggested slug: `release-signing`) using the approved Foundation certificate. Keep mandatory manual approval by TeranceO. Do not use a test certificate for public releases.
 4. Allow the CI submitter to submit to this policy, and create its API token. Put the token directly into this repository's [Actions secrets](https://github.com/TeranceO/FlexZoom/settings/secrets/actions) under `SIGNPATH_API_TOKEN`. Do not put it in source, logs, or chat.
