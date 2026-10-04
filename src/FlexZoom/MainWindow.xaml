@@ -9,7 +9,7 @@
       </StackPanel>
       <Border Grid.Column="1" Background="#1E2535" CornerRadius="20" Padding="14,8" VerticalAlignment="Top"><StackPanel Orientation="Horizontal"><Ellipse x:Name="StatusDot" Fill="#8A95AE" Width="7" Height="7" Margin="0,0,8,0" /><TextBlock x:Name="StatusLabel" Text="Lens off" FontSize="12" /></StackPanel></Border>
     </Grid>
-    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0">
+    <ScrollViewer x:Name="SettingsScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0">
       <Grid>
         <Grid.ColumnDefinitions><ColumnDefinition Width="1.15*" /><ColumnDefinition Width="20" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
         <StackPanel>
@@ -53,10 +53,24 @@
           </Border>
           <Border Style="{StaticResource Card}" Margin="0,16,0,0" Padding="16">
             <StackPanel>
-              <TextBlock Text="Global shortcut" FontSize="17" FontWeight="SemiBold" />
-              <CheckBox x:Name="HotkeyEnabledCheck" Content="Enable global shortcut" Checked="HotkeyEnabledChanged" Unchecked="HotkeyEnabledChanged" Margin="0,14,0,14" />
-              <Button x:Name="HotkeyButton" Content="Ctrl + Alt + Z" Click="RecordHotkey" PreviewKeyDown="CaptureHotkey" LostKeyboardFocus="EndRecording" FontSize="17" FontWeight="SemiBold" Padding="12,15" HorizontalContentAlignment="Center" AutomationProperties.Name="Change toggle hotkey" />
+              <TextBlock Text="Global shortcuts" FontSize="17" FontWeight="SemiBold" />
+              <CheckBox x:Name="HotkeyEnabledCheck" Content="Enable toggle shortcut" Checked="HotkeyEnabledChanged" Unchecked="HotkeyEnabledChanged" Margin="0,14,0,10" />
+              <Button x:Name="HotkeyButton" Tag="Toggle" Content="Ctrl + Alt + Z" Click="RecordHotkey" PreviewKeyDown="CaptureHotkey" LostKeyboardFocus="EndRecording" FontSize="15" FontWeight="SemiBold" Padding="12,10" HorizontalContentAlignment="Center" AutomationProperties.Name="Change toggle hotkey" />
               <TextBlock x:Name="HotkeyHint" Text="Click to record a different shortcut." Style="{StaticResource Caption}" Margin="0,9,0,0" />
+              <CheckBox x:Name="ZoomHotkeyEnabledCheck" Content="Enable zoom shortcuts" Checked="HotkeyEnabledChanged" Unchecked="HotkeyEnabledChanged" Margin="0,18,0,12" />
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <TextBlock Text="Zoom in" VerticalAlignment="Center" Margin="0,0,12,0" />
+                <Button x:Name="ZoomInHotkeyButton" Grid.Column="1" Tag="ZoomIn" Content="Ctrl + Alt + Plus" Click="RecordHotkey" PreviewKeyDown="CaptureHotkey" LostKeyboardFocus="EndRecording" Padding="8,10" HorizontalContentAlignment="Center" AutomationProperties.Name="Change zoom in hotkey" />
+              </Grid>
+              <TextBlock x:Name="ZoomInHotkeyHint" Style="{StaticResource Caption}" Margin="0,6,0,10" />
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <TextBlock Text="Zoom out" VerticalAlignment="Center" Margin="0,0,12,0" />
+                <Button x:Name="ZoomOutHotkeyButton" Grid.Column="1" Tag="ZoomOut" Content="Ctrl + Alt + Minus" Click="RecordHotkey" PreviewKeyDown="CaptureHotkey" LostKeyboardFocus="EndRecording" Padding="8,10" HorizontalContentAlignment="Center" AutomationProperties.Name="Change zoom out hotkey" />
+              </Grid>
+              <TextBlock x:Name="ZoomOutHotkeyHint" Style="{StaticResource Caption}" Margin="0,6,0,0" />
+              <TextBlock Text="Changes zoom by 0.25× per press." Style="{StaticResource Caption}" Margin="0,12,0,0" />
             </StackPanel>
           </Border>
           <Border Style="{StaticResource Card}" Margin="0,16,0,0" Padding="16">
@@ -74,7 +88,7 @@
       <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
       <TextBlock x:Name="Notice" Grid.Row="0" Visibility="Collapsed" Foreground="#F5C88F" TextWrapping="Wrap" Margin="0,0,0,12" />
       <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-        <StackPanel VerticalAlignment="Center"><TextBlock x:Name="SaveLabel" Text="Preferences saved automatically" FontSize="12" Foreground="{StaticResource Muted}" /><Button Content="Reset defaults" Click="ResetDefaults" HorizontalAlignment="Left" Padding="0,3" Background="Transparent" BorderThickness="0" FontSize="12" Foreground="{DynamicResource Accent}" /></StackPanel>
+        <StackPanel VerticalAlignment="Center"><TextBlock x:Name="SaveLabel" Text="Preferences saved automatically" FontSize="12" Foreground="{StaticResource Muted}" /><Button x:Name="ResetDefaultsButton" Content="Reset defaults" Click="ResetDefaults" HorizontalAlignment="Left" Padding="0,3" Background="Transparent" BorderThickness="0" FontSize="12" Foreground="{DynamicResource Accent}" /></StackPanel>
         <Button Grid.Column="1" Content="Hide to tray" Click="HideToTray" Margin="12,0" VerticalAlignment="Center" />
         <Button x:Name="ToggleButton" Grid.Column="2" Content="Turn lens on" Click="ToggleLens" Background="{DynamicResource Accent}" Foreground="#141126" FontWeight="SemiBold" BorderThickness="0" MinWidth="144" VerticalAlignment="Center" />
       </Grid>

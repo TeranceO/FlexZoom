@@ -1,0 +1,115 @@
+name: Signed release
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag, matching the project version (for example v1.3.0)
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: signed-release-${{ inputs.tag }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: windows-2022
+    timeout-minutes: 90
+    permissions:
+      contents: write
+      actions: read
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - name: Check SignPath onboarding
+        shell: pwsh
+        env:
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          SIGNPATH_PROJECT_SLUG: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          SIGNPATH_SIGNING_POLICY_SLUG: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          SIGNPATH_ARTIFACT_CONFIGURATION_SLUG: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+$') { throw 'Use an existing vMAJOR.MINOR.PATCH tag.' }
+          foreach ($name in @('SIGNPATH_API_TOKEN', 'SIGNPATH_ORGANIZATION_ID', 'SIGNPATH_PROJECT_SLUG', 'SIGNPATH_SIGNING_POLICY_SLUG', 'SIGNPATH_ARTIFACT_CONFIGURATION_SLUG')) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) { throw "$name is missing. Complete SIGNING.md onboarding; unsigned releases are prohibited." }
+          }
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate release source
+        shell: pwsh
+        run: |
+          $commit = git rev-parse HEAD
+          $tagCommit = git rev-parse "refs/tags/$env:RELEASE_TAG^{commit}"
+          if ($LASTEXITCODE -ne 0 -or $commit -cne $tagCommit) { throw 'Release tag must resolve to the checked-out source.' }
+          git merge-base --is-ancestor HEAD origin/main
+          if ($LASTEXITCODE -ne 0) { throw 'Release source must be part of reviewed main history.' }
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: 9.0.x
+      - name: Build release from tagged source
+        id: build
+        shell: pwsh
+        run: ./tools/ci-build.ps1 -Tag $env:RELEASE_TAG
+      - name: Upload project-owned EXE for SignPath
+        id: unsigned
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: FlexZoom-signing-input
+          path: artifacts/unsigned/FlexZoom.exe
+          if-no-files-found: error
+          retention-days: 14
+      - name: Request SignPath signing and wait for maintainer approval
+        id: signpath
+        uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: artifacts/signed
+          parameters: |
+            version: "${{ steps.build.outputs.version }}"
+      - name: Verify signature, package, and calculate checksums
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.build.outputs.version }}
+          SIGNING_REQUEST_URL: ${{ steps.signpath.outputs.signing-request-web-url }}
+        run: |
+          ./tools/verify-signature.ps1 -Path artifacts/signed/FlexZoom.exe -Version $env:RELEASE_VERSION
+          Copy-Item -LiteralPath artifacts/unsigned/README.md, artifacts/unsigned/VALIDATION.md, artifacts/unsigned/LICENSE, artifacts/unsigned/CODE_SIGNING.md, artifacts/unsigned/SIGNING.md -Destination artifacts/signed
+          New-Item -ItemType Directory -Path artifacts/release | Out-Null
+          Compress-Archive -Path artifacts/signed/* -DestinationPath artifacts/release/FlexZoom-Windows-x64.zip
+          $zipHash = (Get-FileHash artifacts/release/FlexZoom-Windows-x64.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$zipHash  FlexZoom-Windows-x64.zip" | Set-Content artifacts/release/SHA256SUMS.txt -Encoding ascii
+          @{
+            version = $env:RELEASE_VERSION
+            tag = $env:RELEASE_TAG
+            commit = (git rev-parse HEAD)
+            workflow = "https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+            signingRequest = $env:SIGNING_REQUEST_URL
+          } | ConvertTo-Json | Set-Content artifacts/release/PROVENANCE.json -Encoding utf8
+      - name: Publish only the verified signed release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view $env:RELEASE_TAG --json isDraft --jq .isDraft 2>$null | Set-Variable draft
+          if ($LASTEXITCODE -eq 0) {
+            if ($draft -ne 'true') { throw 'This tag already has a public release. Create a new version; never replace published assets.' }
+          } else {
+            gh release create $env:RELEASE_TAG --verify-tag --draft --title "Flex Zoom $($env:RELEASE_TAG.Substring(1))" --notes-file "releases/$env:RELEASE_TAG.md"
+            if ($LASTEXITCODE -ne 0) { throw 'Could not create draft release.' }
+          }
+          gh release upload $env:RELEASE_TAG artifacts/release/FlexZoom-Windows-x64.zip artifacts/release/SHA256SUMS.txt artifacts/release/PROVENANCE.json --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Could not upload signed assets.' }
+          gh release edit $env:RELEASE_TAG --draft=false --latest --notes-file "releases/$env:RELEASE_TAG.md"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not publish release.' }

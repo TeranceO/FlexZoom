@@ -1,14 +1,14 @@
 # Flex Zoom
 
-A native Windows magnifier that follows your mouse. Adjust the zoom, lens shape, size, and colors from a compact settings window, then toggle the lens from any app with a global shortcut.
+A native Windows magnifier that follows your mouse. Adjust the zoom, lens shape, size, and colors from a settings window, then toggle the lens from any app with a global shortcut.
 
 ## Features
 
 - Magnification from 1.25x to 8x.
 - Circle, square, and rectangle lenses, with independent rectangle width and height.
 - Click-through lens with optional inverted colors.
-- Configurable global shortcut, with conflict detection and an option to disable it.
-- Purple, blue, teal, rose, and amber accents, including sliders and checkboxes.
+- Configurable global shortcuts for toggling the lens and zooming in and out, with conflict detection and enable/disable controls.
+- Purple, blue, teal, rose, and amber accents.
 - System tray controls, optional Windows sign-in launch, and separate start-in-tray and lens-on-startup settings.
 - Automatically saved preferences and reset defaults.
 
@@ -16,14 +16,15 @@ A native Windows magnifier that follows your mouse. Adjust the zoom, lens shape,
 
 [Download Flex Zoom for Windows x64](https://github.com/TeranceO/FlexZoom/releases/latest/download/FlexZoom-Windows-x64.zip)
 
-Extract the ZIP and open `FlexZoom.exe`. The portable build includes the .NET runtime; no installer or administrator access is needed. The executable is not code-signed, so Windows may display a publisher warning.
+Extract the ZIP and open `FlexZoom.exe`. The portable build includes the .NET runtime; no installer or administrator access is needed. The existing v1.2.0 download is unsigned and may show a Windows publisher warning. New releases require SignPath signing; Foundation approval is currently pending. See the [Code signing policy](CODE_SIGNING.md).
 
 To build from source, follow the instructions below. Generated executables and ZIPs are distributed through GitHub Releases rather than source control.
 
 1. Choose a zoom level, shape, and lens size.
 2. Press **Ctrl + Alt + Z** or click **Turn lens on**.
-3. Click the shortcut button to record a different combination; Escape cancels. Uncheck **Enable global shortcut** to release the combination while keeping the button and tray controls available.
-4. Use **Hide to tray** to keep the app in the background. Double-click the tray icon to reopen settings, or right-click it to toggle the lens or quit.
+3. Press **Ctrl + Alt + Plus** to zoom in or **Ctrl + Alt + Minus** to zoom out, in 0.25x steps between 1.25x and 8x. The Plus shortcut uses the plus/equals key without Shift. Shortcuts work while settings are hidden; changing zoom while the lens is off sets its next zoom level.
+4. Click any shortcut button to record a different combination; Escape cancels. Use **Enable toggle shortcut** and **Enable zoom shortcuts** to control them independently. Each action needs a different combination.
+5. Use **Hide to tray** to keep the app in the background. Double-click the tray icon to reopen settings, or right-click it to toggle the lens or quit.
 
 By default, closing the settings window hides it to the tray. Disable **Close button hides to tray** to make Close quit the app. Launching another copy reopens the existing settings window.
 
@@ -41,7 +42,7 @@ Requires Windows x64 and the .NET 9 SDK. From the project directory, run:
 .\tools\build.ps1
 ```
 
-The script builds, runs native integration checks, renders settings previews, and publishes a self-contained executable and ZIP into `dist/`. Logs, screenshots, and test results go into `artifacts/`. `-SkipTests` packages without running the checks.
+The script builds, runs native integration checks, renders settings previews, and packages an unsigned local development executable and ZIP into `dist/`. Logs, screenshots, and test results go into `artifacts/`. `-SkipTests` packages without running the checks. Public releases must use the SignPath workflow described in [SIGNING.md](SIGNING.md).
 
 If the published app is running, the script stages the new release, closes the running copy at this project's release path, replaces it, and restarts it with saved preferences. Other app locations are not stopped. The previous release is backed up under `artifacts/previous-release`; replacement failures attempt to restore it.
 
@@ -55,7 +56,7 @@ Native tests need an interactive Windows desktop. See [VALIDATION.md](VALIDATION
 
 ## Compatibility
 
-Built with C# / WPF and the Windows Magnification API. Tested on Windows 11 x64. Windows 10 has the required native APIs but has not been physically tested. ARM64 and x86 packages are not provided.
+Built with C# / WPF and the Windows Magnification API. Tested on Windows 11 x64. Windows 10 has the required native APIs but has not been physically tested.
 
 Normal desktop apps are the target. Secure desktops, capture-protected content, and exclusive-fullscreen games may not magnify. Use windowed or borderless modes for games. The app does not inject input into other apps or change system display magnification.
 
@@ -77,3 +78,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development and publication guidance.
 ## License
 
 [MIT](LICENSE).
+
+## Code signing policy
+
+Future public Windows releases use SignPath Foundation signing after application approval. The workflow verifies the signed EXE before packaging and publication. Provider attribution, maintainer roles, privacy, and onboarding status are in [CODE_SIGNING.md](CODE_SIGNING.md); setup and future release instructions are in [SIGNING.md](SIGNING.md).

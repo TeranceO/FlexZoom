@@ -1,0 +1,31 @@
+name: Build and check
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: 9.0.x
+      - name: Build and run headless checks
+        shell: pwsh
+        run: ./tools/ci-build.ps1
+      - name: Upload unsigned build evidence (not a release)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: FlexZoom-unsigned-build-evidence
+          path: |
+            artifacts/unsigned/
+            artifacts/headless-self-test.txt
+          retention-days: 14
+          if-no-files-found: error

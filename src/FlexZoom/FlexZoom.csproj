@@ -10,7 +10,10 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\FlexZoom.ico</ApplicationIcon>
     <AssemblyName>FlexZoom</AssemblyName>
-    <Version>1.2.0</Version>
+    <Version>1.3.0</Version>
+    <Product>Flex Zoom</Product>
+    <Company>Terance Ostrander</Company>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Description>A cursor-following magnifier for Windows.</Description>
     <!-- WPF owns the DPI-aware manifest; WinForms is used only for the tray icon. -->
     <NoWarn>$(NoWarn);WFO0003</NoWarn>

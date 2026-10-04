@@ -12,4 +12,6 @@ Do not commit `artifacts/`, `dist/`, `bin/`, or `obj/`. These can contain execut
 
 Review the files Git will include with `git ls-files --cached --others --exclude-standard`. Use Git to publish the source; uploading the entire workspace folder bypasses ignore rules. Attach the portable ZIP to a GitHub Release instead of committing it. Inspect any screenshots or logs separately before sharing them.
 
+Follow [AGENTS.md](AGENTS.md) and [SIGNING.md](SIGNING.md) for releases. Public Windows assets must come from the GitHub-hosted SignPath workflow, pass signature verification, and receive manual maintainer signing approval. Local build output is for development and must not be uploaded as an unsigned fallback. Foundation approval is currently pending.
+
 This project is licensed under the MIT License. Include the LICENSE file with redistributed copies.

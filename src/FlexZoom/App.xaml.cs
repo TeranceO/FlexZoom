@@ -25,9 +25,10 @@ public partial class App : Application
             var surface = SelfTest.CreateSurface(); MainWindow = surface;
             surface.Closed += (_, _) => Shutdown(); surface.Show(); return;
         }
-        if (Array.Exists(e.Args, x => x == "--self-test"))
+        bool headlessTest = Array.Exists(e.Args, x => x == "--self-test-headless");
+        if (headlessTest || Array.Exists(e.Args, x => x == "--self-test"))
         {
-            int code = SelfTest.Run(); Shutdown(code); return;
+            int code = SelfTest.Run(!headlessTest); Shutdown(code); return;
         }
         instance = new Mutex(true, "Local\\FlexZoom.Instance", out bool first);
         showRequest = new EventWaitHandle(false, EventResetMode.AutoReset, "Local\\FlexZoom.ShowSettings");

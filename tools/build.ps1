@@ -74,7 +74,7 @@ try {
         if ($check.ExitCode -ne 0) { throw "Self-tests failed. See $artifacts\self-test.txt. Your installed release was not replaced." }
     }
     Invoke-DotNet -Phase 'Publish' -Arguments @('publish', 'src/FlexZoom', '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true', '-p:PublishSingleFile=true', '-p:IncludeNativeLibrariesForSelfExtract=true', '-p:DebugType=None', '-o', $stageRelease, '--nologo')
-    Copy-Item -LiteralPath "$taskRoot\README.md", "$taskRoot\VALIDATION.md", "$taskRoot\LICENSE" -Destination $stageRelease
+    Copy-Item -LiteralPath "$taskRoot\README.md", "$taskRoot\VALIDATION.md", "$taskRoot\LICENSE", "$taskRoot\CODE_SIGNING.md", "$taskRoot\SIGNING.md" -Destination $stageRelease
     Compress-Archive -Path "$stageRelease\*" -DestinationPath $stageZip
 
     # Back up each file being replaced; never remove unrelated files in the release folder.
@@ -84,6 +84,8 @@ try {
         @{ Source = "$stageRelease\README.md"; Target = "$release\README.md" },
         @{ Source = "$stageRelease\VALIDATION.md"; Target = "$release\VALIDATION.md" },
         @{ Source = "$stageRelease\LICENSE"; Target = "$release\LICENSE" },
+        @{ Source = "$stageRelease\CODE_SIGNING.md"; Target = "$release\CODE_SIGNING.md" },
+        @{ Source = "$stageRelease\SIGNING.md"; Target = "$release\SIGNING.md" },
         @{ Source = $stageZip; Target = $releaseZip }
     )
     foreach ($file in $files) {
@@ -119,7 +121,7 @@ try {
         if ($restoreErrors.Count -gt 0) { throw "Release replacement failed: $replacementError Recovery requires the backup at $backup. $($restoreErrors -join '; ') Log: $logPath" }
         throw "Release replacement failed; previous files restored. $replacementError Log: $logPath"
     }
-    Write-BuildMessage "Build complete: $releaseExe"
+    Write-BuildMessage "Unsigned local development build complete: $releaseExe. Public releases must use the SignPath GitHub workflow."
     Write-BuildMessage "Portable ZIP: $releaseZip"
     Get-FileHash -LiteralPath $releaseExe -Algorithm SHA256
 

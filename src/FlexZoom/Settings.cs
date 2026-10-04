@@ -18,6 +18,11 @@ public sealed record Settings
     public uint Modifiers { get; set; } = 3; // Ctrl + Alt
     public uint Key { get; set; } = 0x5A;
     public bool GlobalShortcutEnabled { get; set; } = true;
+    public bool ZoomShortcutsEnabled { get; set; } = true;
+    public uint ZoomInModifiers { get; set; } = 3;
+    public uint ZoomInKey { get; set; } = 0xBB; // Plus / equals key
+    public uint ZoomOutModifiers { get; set; } = 3;
+    public uint ZoomOutKey { get; set; } = 0xBD; // Minus key
     public bool InvertColors { get; set; }
     public bool StartInTray { get; set; }
     public bool StartWithLensOn { get; set; }
@@ -31,7 +36,26 @@ public sealed record Settings
         Height = Math.Clamp(Height, 140, 600);
         if (!Enum.IsDefined(Shape)) Shape = LensShape.Circle;
         if (!Hotkey.IsAllowed(Modifiers, Key)) { Modifiers = 3; Key = 0x5A; }
+        if (!Hotkey.IsAllowed(ZoomInModifiers, ZoomInKey)) { ZoomInModifiers = 3; ZoomInKey = 0xBB; }
+        if (!Hotkey.IsAllowed(ZoomOutModifiers, ZoomOutKey)) { ZoomOutModifiers = 3; ZoomOutKey = 0xBD; }
     }
+
+    internal (uint Modifiers, uint Key) ShortcutFor(ShortcutAction action) => action switch
+    {
+        ShortcutAction.ZoomIn => (ZoomInModifiers, ZoomInKey),
+        ShortcutAction.ZoomOut => (ZoomOutModifiers, ZoomOutKey),
+        _ => (Modifiers, Key)
+    };
+    internal void SetShortcut(ShortcutAction action, uint modifiers, uint key)
+    {
+        switch (action)
+        {
+            case ShortcutAction.ZoomIn: ZoomInModifiers = modifiers; ZoomInKey = key; break;
+            case ShortcutAction.ZoomOut: ZoomOutModifiers = modifiers; ZoomOutKey = key; break;
+            default: Modifiers = modifiers; Key = key; break;
+        }
+    }
+    internal bool ShortcutEnabled(ShortcutAction action) => action == ShortcutAction.Toggle ? GlobalShortcutEnabled : ZoomShortcutsEnabled;
 }
 
 public sealed class SettingsStore(string path)

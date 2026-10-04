@@ -5,21 +5,24 @@ using System.Windows.Interop;
 
 namespace FlexZoom;
 
+internal enum ShortcutAction { Toggle, ZoomIn, ZoomOut }
+
 internal sealed class Hotkey : IDisposable
 {
     private readonly HwndSource source;
+    private readonly int firstId;
     private int activeId;
     private uint modifiers, key;
     public bool Registered => activeId != 0;
     public bool Recording { get; set; }
     public event Action? Pressed;
     public event Action? CurrentShortcutRecorded;
-    public Hotkey(nint handle) { source = HwndSource.FromHwnd(handle)!; source.AddHook(Hook); }
+    public Hotkey(nint handle, int firstId = 1) { this.firstId = firstId; source = HwndSource.FromHwnd(handle)!; source.AddHook(Hook); }
     public bool TrySet(uint newModifiers, uint newKey)
     {
         if (!IsAllowed(newModifiers, newKey)) return false;
         if (Registered && modifiers == newModifiers && key == newKey) return true;
-        int next = activeId == 1 ? 2 : 1;
+        int next = activeId == firstId ? firstId + 1 : firstId;
         if (!Native.RegisterHotKey(source.Handle, next, newModifiers | 0x4000, newKey)) return false;
         if (Registered) Native.UnregisterHotKey(source.Handle, activeId);
         activeId = next; modifiers = newModifiers; key = newKey; return true;
@@ -29,7 +32,7 @@ internal sealed class Hotkey : IDisposable
     {
         var parts = new List<string>();
         if ((mods & 2) != 0) parts.Add("Ctrl"); if ((mods & 1) != 0) parts.Add("Alt"); if ((mods & 4) != 0) parts.Add("Shift");
-        parts.Add(new KeyConverter().ConvertToString(KeyInterop.KeyFromVirtualKey((int)vk)) ?? "?");
+        parts.Add(vk switch { 0xBB => "Plus", 0xBD => "Minus", _ => new KeyConverter().ConvertToString(KeyInterop.KeyFromVirtualKey((int)vk)) ?? "?" });
         return string.Join(" + ", parts);
     }
     private nint Hook(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)

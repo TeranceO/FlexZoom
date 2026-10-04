@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Security;
@@ -19,12 +20,13 @@ public partial class MainWindow : Window
     private readonly StartupRegistration startup = new();
     public Settings Preferences { get; private set; }
     private Lens? lens;
-    private Hotkey? hotkey;
+    private readonly Dictionary<ShortcutAction, Hotkey> hotkeys = new();
     private Forms.NotifyIcon? tray;
     private Forms.ToolStripMenuItem? trayToggle;
     private System.Drawing.Icon? trayIcon;
     private readonly DispatcherTimer saveTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
-    private bool ready, quitting, dirty, recording;
+    private bool ready, quitting, dirty;
+    private ShortcutAction? recording;
     private readonly bool designTest;
 
     public MainWindow() : this(false) { }
@@ -35,6 +37,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         Populate(); ready = true;
         saveTimer.Tick += (_, _) => Save();
+        if (test) Closed += (_, _) => { foreach (var hotkey in hotkeys.Values) hotkey.Dispose(); lens?.Dispose(); };
         if (!test)
         {
             Preferences = store.Load(out var warning); Populate();
@@ -51,15 +54,8 @@ public partial class MainWindow : Window
     }
     private void InitializeServices(object? sender, EventArgs e)
     {
-        hotkey = new Hotkey(new WindowInteropHelper(this).Handle);
-        hotkey.Pressed += Toggle;
-        hotkey.CurrentShortcutRecorded += StopRecording;
-        if (Preferences.GlobalShortcutEnabled && !hotkey.TrySet(Preferences.Modifiers, Preferences.Key))
-            SetNotice("Your toggle shortcut is already used by another app. Click the shortcut button to choose a different one.");
-        StopRecording();
-        try { lens = new Lens(); lens.Apply(Preferences); lens.Failed += message => { SetNotice(message); UpdateStatus(); }; }
-        catch (Exception ex) when (ex is Win32Exception or DllNotFoundException)
-        { SetNotice("Magnifier unavailable: " + ex.Message); ToggleButton.IsEnabled = false; }
+        InitializeShortcuts(new WindowInteropHelper(this).Handle);
+        InitializeLens();
         using var iconStream = Application.GetResourceStream(new Uri("pack://application:,,,/Assets/FlexZoom.ico")).Stream;
         trayIcon = new System.Drawing.Icon(iconStream);
         tray = new Forms.NotifyIcon { Icon = trayIcon, Text = "Flex Zoom — lens off", Visible = true };
@@ -73,6 +69,24 @@ public partial class MainWindow : Window
         tray.DoubleClick += (_, _) => Dispatcher.Invoke(ShowSettings);
         lens?.SetEnabled(Preferences.StartWithLensOn);
         UpdateStatus();
+    }
+    internal void InitializeShortcuts(nint handle)
+    {
+        foreach (var action in Enum.GetValues<ShortcutAction>())
+        {
+            var hotkey = new Hotkey(handle, 1 + (int)action * 2);
+            hotkeys.Add(action, hotkey);
+            hotkey.Pressed += () => { if (action == ShortcutAction.Toggle) Toggle(); else AdjustZoom(action == ShortcutAction.ZoomIn ? 0.25 : -0.25); };
+            hotkey.CurrentShortcutRecorded += () => { var shortcut = Preferences.ShortcutFor(action); TryRecordShortcut(shortcut.Modifiers, shortcut.Key); };
+        }
+        RefreshShortcuts();
+    }
+    internal Lens? ActiveLens => lens;
+    internal void InitializeLens()
+    {
+        try { lens = new Lens(); lens.Apply(Preferences); lens.Failed += message => { SetNotice(message); UpdateStatus(); }; }
+        catch (Exception ex) when (ex is Win32Exception or DllNotFoundException)
+        { SetNotice("Magnifier unavailable: " + ex.Message); ToggleButton.IsEnabled = false; }
     }
     private void Populate()
     {
@@ -89,6 +103,7 @@ public partial class MainWindow : Window
         StartupLensCheck.IsChecked = Preferences.StartWithLensOn;
         CloseToTrayCheck.IsChecked = Preferences.CloseToTray;
         HotkeyEnabledCheck.IsChecked = Preferences.GlobalShortcutEnabled;
+        ZoomHotkeyEnabledCheck.IsChecked = Preferences.ZoomShortcutsEnabled;
         StopRecording();
         UpdateLabels(); ready = previous;
     }
@@ -190,21 +205,43 @@ public partial class MainWindow : Window
     {
         if (!ready) return;
         Preferences.GlobalShortcutEnabled = HotkeyEnabledCheck.IsChecked == true;
-        if (!Preferences.GlobalShortcutEnabled) hotkey?.Disable();
-        else hotkey?.TrySet(Preferences.Modifiers, Preferences.Key);
-        StopRecording();
+        Preferences.ZoomShortcutsEnabled = ZoomHotkeyEnabledCheck.IsChecked == true;
+        RefreshShortcuts();
         QueueSave();
     }
+    private void RefreshShortcuts()
+    {
+        foreach (var (action, hotkey) in hotkeys)
+        {
+            if (!Preferences.ShortcutEnabled(action)) hotkey.Disable();
+            else
+            {
+                var shortcut = Preferences.ShortcutFor(action);
+                hotkey.TrySet(shortcut.Modifiers, shortcut.Key);
+            }
+        }
+        StopRecording();
+    }
+    private (System.Windows.Controls.Button Button, System.Windows.Controls.TextBlock Hint) ShortcutControls(ShortcutAction action) => action switch
+    {
+        ShortcutAction.ZoomIn => (ZoomInHotkeyButton, ZoomInHotkeyHint),
+        ShortcutAction.ZoomOut => (ZoomOutHotkeyButton, ZoomOutHotkeyHint),
+        _ => (HotkeyButton, HotkeyHint)
+    };
+    private void AdjustZoom(double step) => ZoomSlider.Value = Math.Clamp(Preferences.Zoom + step, ZoomSlider.Minimum, ZoomSlider.Maximum);
     private void RecordHotkey(object sender, RoutedEventArgs e)
     {
-        if (!Preferences.GlobalShortcutEnabled) return;
-        recording = true; if (hotkey != null) hotkey.Recording = true;
-        HotkeyButton.Content = "Press your shortcut…";
-        HotkeyHint.Text = "Use Ctrl, Alt, or Shift + a key, or F1–F24. Esc cancels.";
+        var action = Enum.Parse<ShortcutAction>((string)((System.Windows.Controls.Button)sender).Tag);
+        if (!Preferences.ShortcutEnabled(action)) return;
+        StopRecording(); recording = action;
+        foreach (var hotkey in hotkeys.Values) hotkey.Recording = true;
+        var controls = ShortcutControls(action);
+        controls.Button.Content = "Press your shortcut…";
+        controls.Hint.Text = "Use Ctrl, Alt, or Shift + a key, or F1–F24. Esc cancels.";
     }
     private void CaptureHotkey(object sender, KeyEventArgs e)
     {
-        if (!recording) return;
+        if (recording == null) return;
         e.Handled = true;
         var key = e.Key == System.Windows.Input.Key.System ? e.SystemKey : e.Key;
         if (key == System.Windows.Input.Key.Escape) { StopRecording(); return; }
@@ -212,18 +249,33 @@ public partial class MainWindow : Window
         var mods = Keyboard.Modifiers;
         uint flags = (mods.HasFlag(ModifierKeys.Control) ? 2u : 0) | (mods.HasFlag(ModifierKeys.Alt) ? 1u : 0) | (mods.HasFlag(ModifierKeys.Shift) ? 4u : 0);
         uint vk = (uint)KeyInterop.VirtualKeyFromKey(key);
-        if (mods.HasFlag(ModifierKeys.Windows) || !Hotkey.IsAllowed(flags, vk)) { HotkeyHint.Text = "Add Ctrl, Alt, or Shift, or use a function key."; return; }
-        if (hotkey?.TrySet(flags, vk) != true) { HotkeyHint.Text = "That shortcut is unavailable. Try another combination."; return; }
-        Preferences.Modifiers = flags; Preferences.Key = vk;
+        if (mods.HasFlag(ModifierKeys.Windows) || !Hotkey.IsAllowed(flags, vk)) { ShortcutControls(recording.Value).Hint.Text = "Add Ctrl, Alt, or Shift, or use a function key."; return; }
+        TryRecordShortcut(flags, vk);
+    }
+    private void TryRecordShortcut(uint flags, uint vk)
+    {
+        if (recording is not { } action) return;
+        foreach (var other in Enum.GetValues<ShortcutAction>())
+            if (other != action && Preferences.ShortcutFor(other) == (flags, vk))
+            { ShortcutControls(action).Hint.Text = "That shortcut belongs to another Flex Zoom action. Choose a different one."; return; }
+        if (!hotkeys.TryGetValue(action, out var hotkey) || !hotkey.TrySet(flags, vk))
+        { ShortcutControls(action).Hint.Text = "That shortcut is unavailable. Try another combination."; return; }
+        Preferences.SetShortcut(action, flags, vk);
         StopRecording(); Notice.Visibility = Visibility.Collapsed; QueueSave();
     }
-    private void EndRecording(object sender, KeyboardFocusChangedEventArgs e) { if (recording) StopRecording(); }
+    private void EndRecording(object sender, KeyboardFocusChangedEventArgs e) { if (recording != null) StopRecording(); }
     private void StopRecording()
     {
-        recording = false; if (hotkey != null) hotkey.Recording = false;
-        HotkeyButton.Content = Hotkey.Label(Preferences.Modifiers, Preferences.Key);
-        HotkeyButton.IsEnabled = Preferences.GlobalShortcutEnabled;
-        HotkeyHint.Text = !Preferences.GlobalShortcutEnabled ? "" : hotkey?.Registered == false ? "Shortcut unavailable. Click to choose another." : "Click to record a different shortcut.";
+        recording = null;
+        foreach (var hotkey in hotkeys.Values) hotkey.Recording = false;
+        foreach (var action in Enum.GetValues<ShortcutAction>())
+        {
+            var controls = ShortcutControls(action);
+            var shortcut = Preferences.ShortcutFor(action);
+            controls.Button.Content = Hotkey.Label(shortcut.Modifiers, shortcut.Key);
+            controls.Button.IsEnabled = Preferences.ShortcutEnabled(action);
+            controls.Hint.Text = !Preferences.ShortcutEnabled(action) ? "" : hotkeys.TryGetValue(action, out var hotkey) && !hotkey.Registered ? "Shortcut unavailable. Click to choose another." : "Click to record a different shortcut.";
+        }
     }
     private void ResetDefaults(object sender, RoutedEventArgs e)
     {
@@ -235,10 +287,23 @@ public partial class MainWindow : Window
             RefreshStartup();
         }
         var defaults = new Settings();
-        if (hotkey != null && !hotkey.TrySet(defaults.Modifiers, defaults.Key))
-        { defaults.Modifiers = Preferences.Modifiers; defaults.Key = Preferences.Key; SetNotice("Lens defaults restored. Your current shortcut was kept because Ctrl + Alt + Z is in use."); }
-        if (hotkey != null && !hotkey.Registered)
-            defaults.GlobalShortcutEnabled = Preferences.GlobalShortcutEnabled;
+        var unavailable = new List<ShortcutAction>();
+        // Release all old combinations first so shortcuts moved between actions can reset.
+        foreach (var hotkey in hotkeys.Values) hotkey.Disable();
+        foreach (var (action, hotkey) in hotkeys)
+        {
+            var shortcut = defaults.ShortcutFor(action);
+            if (!hotkey.TrySet(shortcut.Modifiers, shortcut.Key))
+                unavailable.Add(action);
+        }
+        foreach (var action in unavailable)
+        {
+            var previous = Preferences.ShortcutFor(action);
+            if (hotkeys[action].TrySet(previous.Modifiers, previous.Key))
+                defaults.SetShortcut(action, previous.Modifiers, previous.Key);
+        }
+        if (unavailable.Count > 0)
+            SetNotice("Lens defaults restored. Some default shortcuts are in use; available previous shortcuts were kept. Check the shortcut controls.");
         Preferences = defaults; Populate();
         try { lens?.Apply(Preferences); } catch (Win32Exception ex) { SetNotice(ex.Message); }
         QueueSave();
@@ -268,7 +333,8 @@ public partial class MainWindow : Window
         quitting = true; Save();
         WriteFollowDiagnostics();
         SystemEvents.SessionSwitch -= SessionChanged; SystemEvents.PowerModeChanged -= PowerChanged;
-        hotkey?.Dispose(); lens?.Dispose();
+        foreach (var hotkey in hotkeys.Values) hotkey.Dispose();
+        lens?.Dispose();
         if (tray != null) { tray.Visible = false; tray.ContextMenuStrip?.Dispose(); tray.Dispose(); }
         trayIcon?.Dispose();
     }
